@@ -6,7 +6,7 @@ from typing import List, Tuple, Dict, Any
 def working_hours(day: datetime) -> Tuple[datetime, datetime]:
     return (datetime(day.year, day.month, day.day, 8, 0), datetime(day.year, day.month, day.day, 18, 0))
 
-def create_person_calendar(person: str) -> List[Dict[str, any]]:
+def create_person_calendar(person: str) -> List[Dict[str, Any]]:
     calendar = []
     if person == "Person1":
         calendar.extend([
@@ -79,7 +79,7 @@ class CalendarToolSpec(BaseToolSpec):
         """
         results = dict()
         for day_start, day_end in self.working_days:
-            day_calendars = [self.filter_events_by_day(calendar, day_start, day_end) for calendar in calendars]
+            day_calendars = [self.filter_events_by_day(calendar, day_start, day_end) for calendar in self.calendars]
             common_free = self.find_common_free_slot(day_calendars, day_start, day_end)
             results[day_start.strftime("%Y-%m-%d")] = common_free
         return results
@@ -89,7 +89,7 @@ class CalendarToolSpec(BaseToolSpec):
         start: datetime, 
         end: datetime, 
         title: str, 
-        calendars_mapping: Dict[str, List[Dict[str, any]]]) -> str:
+        calendars_mapping: Dict[str, List[Dict[str, Any]]]) -> str:
         """
         Adds an event to the calendars of specified people if the time slot is free.
         
@@ -102,7 +102,7 @@ class CalendarToolSpec(BaseToolSpec):
         Returns:
             str: Success message if the event was added, otherwise an error message.
         """
-        def is_free(calendar: List[Dict[str, any]], start: datetime, end: datetime) -> bool:
+        def is_free(calendar: List[Dict[str, Any]], start: datetime, end: datetime) -> bool:
             for event in calendar:
                 # Check if the new event overlaps with any existing event.
                 if not (end <= event["start"] or start >= event["end"]):
@@ -193,9 +193,9 @@ class CalendarToolSpec(BaseToolSpec):
         return common_free
 
     @staticmethod
-    def filter_events_by_day(calendar: List[Dict[str, any]], 
+    def filter_events_by_day(calendar: List[Dict[str, Any]], 
                             day_start: datetime, 
-                            day_end: datetime) -> List[Dict[str, any]]:
+                            day_end: datetime) -> List[Dict[str, Any]]:
         """
         Returns events from the calendar that fall within the given day.
         """
@@ -203,9 +203,6 @@ class CalendarToolSpec(BaseToolSpec):
 
     def find_common_free_slot_multi_day(
         self,
-        calendars: List[List[Dict[str, any]]], 
-        working_days: List[Tuple[datetime, datetime]],
-        persons: List[str] = ["Person1", "Person2", "Person3"]
     ) -> List[datetime]:
         """
         Computes common free slots for multiple days and then returns a sorted list 
@@ -215,16 +212,16 @@ class CalendarToolSpec(BaseToolSpec):
         free_boundaries = set()
 
         # Process each day separately
-        for day_start, day_end in working_days:
+        for day_start, day_end in self.working_days:
             # For each calendar, filter events to just those in the day.
-            daily_calendars = [self.filter_events_by_day(calendar, day_start, day_end) for calendar in calendars]
+            daily_calendars = [self.filter_events_by_day(calendar, day_start, day_end) for calendar in self.calendars]
             daily_free = self.find_common_free_slot(daily_calendars, day_start, day_end)
             for start, end in daily_free:
                 free_boundaries.add(start)
                 free_boundaries.add(end)
         
         # Get full meetings (meetings with all three attendees) across all days.
-        full_meetings = self.flag_full_meetings(calendars, persons)
+        full_meetings = self.flag_full_meetings(self.calendars, self.persons)
         for meeting in full_meetings:
             free_boundaries.add(meeting["start"])
             free_boundaries.add(meeting["end"])
@@ -233,7 +230,7 @@ class CalendarToolSpec(BaseToolSpec):
         return sorted(free_boundaries)
     
     @staticmethod
-    def ensure_owner_in_meetings(calendar: List[Dict[str, any]], owner: str) -> None:
+    def ensure_owner_in_meetings(calendar: List[Dict[str, Any]], owner: str) -> None:
         """
         Ensures that each meeting in the given calendar includes the calendar owner's name 
         in the attendees list. If not, adds the owner.
@@ -247,18 +244,18 @@ class CalendarToolSpec(BaseToolSpec):
 
     @staticmethod
     def flag_full_meetings(
-        calendars: List[List[Dict[str, any]]], 
+        calendars: List[List[Dict[str, Any]]], 
         required_attendees: List[str]
-    ) -> List[Dict[str, any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Flags meetings that include all the required attendees.
         """
-        all_events: List[Dict[str, any]] = []
+        all_events: List[Dict[str, Any]] = []
         for calendar in calendars:
             all_events.extend(calendar)
         
         # Deduplicate events based on (start, end, title)
-        unique_events: Dict[Tuple[datetime, datetime, str], Dict[str, any]] = {}
+        unique_events: Dict[Tuple[datetime, datetime, str], Dict[str, Any]] = {}
         for event in all_events:
             key = (event["start"], event["end"], event["title"])
             if key not in unique_events:
@@ -266,7 +263,7 @@ class CalendarToolSpec(BaseToolSpec):
             else:
                 unique_events[key]["attendees"] = list(set(unique_events[key]["attendees"]) | set(event["attendees"]))
         
-        flagged: List[Dict[str, any]] = []
+        flagged: List[Dict[str, Any]] = []
         for event in unique_events.values():
             if all(attendee in event["attendees"] for attendee in required_attendees):
                 flagged.append(event)
@@ -274,17 +271,17 @@ class CalendarToolSpec(BaseToolSpec):
 
     @staticmethod
     def flag_partial_meetings(
-        calendars: List[List[Dict[str, any]]], 
+        calendars: List[List[Dict[str, Any]]], 
         pair: Tuple[str, str]
-    ) -> List[Dict[str, any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Flags meetings that include both persons specified in the pair.
         """
-        all_events: List[Dict[str, any]] = []
+        all_events: List[Dict[str, Any]] = []
         for calendar in calendars:
             all_events.extend(calendar)
         
-        unique_events: Dict[Tuple[datetime, datetime, str], Dict[str, any]] = {}
+        unique_events: Dict[Tuple[datetime, datetime, str], Dict[str, Any]] = {}
         for event in all_events:
             key = (event["start"], event["end"], event["title"])
             if key not in unique_events:
@@ -292,7 +289,7 @@ class CalendarToolSpec(BaseToolSpec):
             else:
                 unique_events[key]["attendees"] = list(set(unique_events[key]["attendees"]) | set(event["attendees"]))
         
-        flagged: List[Dict[str, any]] = []
+        flagged: List[Dict[str, Any]] = []
         for event in unique_events.values():
             if all(person in event["attendees"] for person in pair):
                 flagged.append(event)
