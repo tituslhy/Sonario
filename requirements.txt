@@ -1,2 +1,4 @@
 llama-index
 python-dotenv
+matplotlib
+seaborn
